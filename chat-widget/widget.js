@@ -12,7 +12,8 @@
  *     avatarInitials,   // "R" until a photo is provided (avatarUrl)
  *     apiUrl,           // POST /chat on the worker; unset = FAQ/scripted fallback
  *     leadWebhookUrl,   // POST /lead on the worker; unset = do not send
- *     siteBase, homeValueUrl, probateUrl, seniorUrl, poweredBy
+ *     siteBase, homeValueUrl, probateUrl, seniorUrl, poweredBy,
+ *     position          // "left" (default) or "right"
  *   };
  *
  * Public API: window.PREChat.open() / close() / toggle() / reset()
@@ -57,7 +58,7 @@
     pageUrl: "",
     sellerMode: "",
     poweredBy: "PortlandRealEstate.guide",
-    position: "bottom-right",
+    position: "left",
     /* Open the panel on page load; visitors close it if they want it out of the way. */
     openOnLoad: true
   };
@@ -172,7 +173,7 @@
     '  display:flex;align-items:center;justify-content:center;',
     '  transition:transform .18s ease,background .18s ease;',
     '}',
-    '.pre--left .pre-launcher{right:auto;left:20px;}',
+    '.pre--left .pre-launcher{right:auto;left:80px;}',
     '.pre-launcher:hover,.pre-launcher:focus-visible{background:var(--blue-dark);transform:scale(1.05);outline:none;}',
     '.pre-launcher svg{width:30px;height:30px;fill:currentColor;}',
     '.pre-launcher.is-open{background:var(--blue-dark);}',
@@ -197,7 +198,7 @@
     '  pointer-events:none;visibility:hidden;',
     '  transition:opacity .18s ease,transform .18s ease,visibility .18s;',
     '}',
-    '.pre--left .pre-panel{right:auto;left:20px;}',
+    '.pre--left .pre-panel{right:auto;left:80px;}',
     '.pre-panel.is-open{opacity:1;transform:none;pointer-events:auto;visibility:visible;}',
     '.pre-header{',
     '  flex:0 0 auto;',
@@ -367,7 +368,7 @@
     '    padding-bottom:env(safe-area-inset-bottom,0);',
     '  }',
     '  .pre--left .pre-panel{left:0;right:0;}',
-    '  .pre-launcher{right:16px;bottom:16px;z-index:2147483002;}',
+    '  .pre-launcher,.pre--left .pre-launcher{right:16px;left:auto;bottom:16px;z-index:2147483002;}',
     '  .pre-launcher.is-open{display:none;}',
     '  .pre-chips{gap:6px;}',
     '  .pre-chip{padding:6px 11px;font-size:12.5px;}',
@@ -829,7 +830,7 @@
     var shadow = host.attachShadow({ mode: "open" });
     var style = document.createElement("style");
     style.textContent = CSS;
-    var wrap = $("div", { class: "pre" + (this.cfg.position === "bottom-left" ? " pre--left" : "") });
+    var wrap = $("div", { class: "pre" + (isLeftPosition(this.cfg.position) ? " pre--left" : "") });
     shadow.appendChild(style);
     shadow.appendChild(wrap);
     this.root = wrap;
@@ -1880,55 +1881,21 @@
     }
   };
 
-  /* Theme CSS hides .call-widget at min-width:768px, so it only shows below 768px.
-     Desktop reflow reserves 420px panel + 20px offset + 24px gap. */
+  function isLeftPosition(pos) {
+    var p = String(pos || "").toLowerCase();
+    return p === "left" || p === "bottom-left";
+  }
+
+  /* Theme CSS hides .call-widget at min-width:768px, so it only shows below 768px. */
   var HOST_CSS = [
     "@media (max-width: 767px){",
     "  html.pre-chat-open .call-widget{display:none !important;}",
     "}",
-    "@media (min-width: 1024px){",
-    "  html.pre-chat-open{",
-    "    --pre-chat-gutter:464px;",
-    "    overflow-x:hidden;",
-    "  }",
-    "  html.pre-chat-open body{",
-    "    margin-right:var(--pre-chat-gutter) !important;",
-    "    box-sizing:border-box;",
-    "  }",
-    "  html.pre-chat-open header.fixed,",
-    "  html.pre-chat-open .navbar-fixed-top,",
-    "  html.pre-chat-open .navbar-fixed-bottom,",
-    "  html.pre-chat-open .more-menu-overlay{",
-    "    width:auto !important;",
-    "    left:0;",
-    "    right:var(--pre-chat-gutter) !important;",
-    "  }",
-    "  html.pre-chat-open .container,",
-    "  html.pre-chat-open .si-content-area,",
-    "  html.pre-chat-open .si-container,",
-    "  html.pre-chat-open .si-site-container,",
-    "  html.pre-chat-open .zh-wrap,",
-    "  html.pre-chat-open .zh-mapsec,",
-    "  html.pre-chat-open #zip-hub,",
-    "  html.pre-chat-open .dynamic-nav,",
-    "  html.pre-chat-open .dynamic-nav-container,",
-    "  html.pre-chat-open .more-menu-overlay-wrap{",
-    "    max-width:100% !important;",
-    "    width:100% !important;",
-    "    box-sizing:border-box !important;",
-    "  }",
-    "  html.pre-chat-open .zmap-explorer,",
-    "  html.pre-chat-open .zmap-grid,",
-    "  html.pre-chat-open .zmap-tools,",
-    "  html.pre-chat-open .zip-map-credit,",
-    "  html.pre-chat-open .zmap-frame{",
-    "    width:100% !important;",
-    "    max-width:100% !important;",
-    "    box-sizing:border-box !important;",
-    "  }",
-    "  html.pre-chat-open .zmap-grid{",
-    "    grid-template-columns:minmax(0,1fr) minmax(240px,330px) !important;",
-    "  }",
+    ".call-widget__button,",
+    ".call-widget__button a,",
+    ".call-widget__button .si-phone-link{",
+    "  border-radius:999px !important;",
+    "  overflow:hidden;",
     "}"
   ].join("\n");
 
