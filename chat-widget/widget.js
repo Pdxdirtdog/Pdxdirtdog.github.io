@@ -13,7 +13,9 @@
  *     apiUrl,           // POST /chat on the worker; unset = FAQ/scripted fallback
  *     leadWebhookUrl,   // POST /lead on the worker; unset = do not send
  *     siteBase, homeValueUrl, probateUrl, seniorUrl, poweredBy,
- *     position          // "left" (default) or "right"
+ *     position,         // "left" (default) or "right"
+ *     openOnLoad,       // default true; skipped if closed within autoOpenSnoozeHours
+ *     autoOpenSnoozeHours // default 24; close stays in effect across pages
  *   };
  *
  * Public API: window.PREChat.open() / close() / toggle() / reset()
@@ -59,8 +61,9 @@
     sellerMode: "",
     poweredBy: "PortlandRealEstate.guide",
     position: "left",
-    /* Open the panel on page load; visitors close it if they want it out of the way. */
-    openOnLoad: true
+    /* Open the panel on page load unless the visitor closed it within autoOpenSnoozeHours. */
+    openOnLoad: true,
+    autoOpenSnoozeHours: 24
   };
 
   var AREA_GROUPS = [
@@ -1022,6 +1025,7 @@
 
   Widget.prototype.close = function () {
     this.state.open = false;
+    rememberClosed(this.cfg);
     setPageChatOpen(false);
     this.ui.panel.classList.remove("is-open");
     this.ui.panel.setAttribute("hidden", "hidden");
@@ -1914,9 +1918,59 @@
     else root.classList.remove("pre-chat-open");
   }
 
+  var CLOSED_AT_KEY = "pre_chat_closed_at";
+
+  function storageGet(key) {
+    try {
+      return global.localStorage.getItem(key) || "";
+    } catch (e) {}
+    try {
+      return global.sessionStorage.getItem(key) || "";
+    } catch (e2) {}
+    try {
+      var re = new RegExp("(?:^|; )" + key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)");
+      var m = document.cookie.match(re);
+      return m ? decodeURIComponent(m[1]) : "";
+    } catch (e3) {}
+    return "";
+  }
+
+  function storageSet(key, value) {
+    try {
+      global.localStorage.setItem(key, value);
+      return;
+    } catch (e) {}
+    try {
+      global.sessionStorage.setItem(key, value);
+      return;
+    } catch (e2) {}
+    try {
+      document.cookie = key + "=" + encodeURIComponent(value) + "; path=/; max-age=31536000; SameSite=Lax";
+    } catch (e3) {}
+  }
+
+  function snoozeHours(cfg) {
+    var n = Number(cfg && cfg.autoOpenSnoozeHours);
+    if (!isFinite(n) || n < 0) n = 24;
+    return n;
+  }
+
+  function isAutoOpenSnoozed(cfg) {
+    var ts = parseInt(storageGet(CLOSED_AT_KEY), 10);
+    if (!ts) return false;
+    var hours = snoozeHours(cfg);
+    if (hours === 0) return false;
+    return (Date.now() - ts) < hours * 60 * 60 * 1000;
+  }
+
+  function rememberClosed(cfg) {
+    storageSet(CLOSED_AT_KEY, String(Date.now()));
+  }
+
   function shouldOpenOnLoad(cfg) {
     var v = cfg && cfg.openOnLoad;
-    return v !== false && v !== "false" && v !== "0";
+    if (v === false || v === "false" || v === "0") return false;
+    return !isAutoOpenSnoozed(cfg);
   }
 
   function init() {
