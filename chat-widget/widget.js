@@ -29,8 +29,11 @@
     botName: "Ricky B",
     botTitle: "Client Concierge",
     companyName: "PortlandRealEstate.guide",
-    greeting:
-      "Welcome! I'm Ricky B. Questions about pricing your home for sale?",
+    greeting: "Hi, I'm Ricky B. What brings you here today?",
+    financingPath: "/blog/low-to-no-down-payment-home-loans/",
+    nextgenPath: "/blog/2026-nextgen-homebuyer-report/",
+    lendingVendorsPath: "/preferred-vendors/#lending-banking",
+    usdaSearchPath: "/property-search/results/?searchtype=2&searchid=2005250",
     avatarUrl: "https://pdxdirtdog.github.io/chat-widget/ricky-b-avatar.svg",
     avatarInitials: "R",
     logoUrl: "",
@@ -108,6 +111,28 @@
     "6+ months / exploring"
   ];
 
+  function normalizeFthbTimeline(text) {
+    var t = String(text || "").toLowerCase();
+    var i;
+    for (i = 0; i < TIMELINES.length; i++) {
+      if (t === TIMELINES[i].toLowerCase()) return TIMELINES[i];
+    }
+    if (/ready|asap|immediately|now|right away/.test(t)) return "Ready now";
+    if (/1\s*[-–to]+\s*3|soon/.test(t)) return "1–3 months";
+    if (/3\s*[-–to]+\s*6/.test(t)) return "3–6 months";
+    if (/6\+|6\s*\+|exploring|just looking|no rush|later|next year/.test(t)) return "6+ months / exploring";
+    return String(text || "").trim() || "6+ months / exploring";
+  }
+
+  function normalizeFthbPreapproval(text) {
+    var t = String(text || "").toLowerCase();
+    if (/working|in process|getting|applying|started/.test(t)) return "Working on it";
+    if (/not sure|unsure|don'?t know/.test(t)) return "Not sure";
+    if (/\byes\b|pre-?approved|already (approved|pre)/.test(t)) return "Yes, pre-approved";
+    if (/not yet|\bno\b|haven'?t|not pre/.test(t)) return "Not yet";
+    return String(text || "").trim() || "Not sure";
+  }
+
   var CSS = [
     ':host{all:initial;font-size:16px;}',
     '*{box-sizing:border-box;}',
@@ -153,8 +178,8 @@
     '@keyframes prePulse{0%{transform:scale(.92);opacity:.7}70%{transform:scale(1.15);opacity:0}100%{opacity:0}}',
     '.pre-panel{',
     '  position:fixed;right:20px;bottom:96px;z-index:2147483001;',
-    '  width:min(400px,calc(100vw - 24px));',
-    '  height:min(660px,calc(100vh - 120px));',
+    '  width:min(420px,calc(100vw - 24px));',
+    '  height:min(720px,calc(100vh - 110px));',
     '  background:var(--white);border-radius:20px;',
     '  box-shadow:var(--shadow);',
     '  display:flex;flex-direction:column;overflow:hidden;',
@@ -243,10 +268,11 @@
     '  appearance:none;background:#fff;color:var(--blue);',
     '  border:1.5px solid var(--blue);border-radius:999px;',
     '  padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;',
-    '  display:inline-flex;align-items:center;gap:6px;line-height:1.2;',
+    '  display:inline-flex;align-items:flex-start;gap:6px;line-height:1.25;',
+    '  max-width:100%;white-space:normal;text-align:left;',
     '}',
     '.pre-chip:hover,.pre-chip:focus-visible{background:rgba(36,91,116,.08);outline:none;}',
-    '.pre-chip svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}',
+    '.pre-chip svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}',
     '.pre-chip--group{',
     '  flex:0 0 100%;margin:4px 0 0;padding:0;border:0;background:none;',
     '  color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.04em;',
@@ -330,6 +356,8 @@
     '  }',
     '  .pre--left .pre-panel{left:0;right:0;}',
     '  .pre-launcher{right:16px;bottom:16px;}',
+    '  .pre-chips{gap:6px;}',
+    '  .pre-chip{padding:6px 11px;font-size:12.5px;}',
     '}',
     '@media (prefers-reduced-motion:reduce){',
     '  .pre-pulse{animation:none;display:none;}',
@@ -449,6 +477,12 @@
       });
     }
     cfg.siteBase = String(cfg.siteBase || SITE).replace(/\/$/, "");
+    /* Sierra may still send the previous default greeting. Map that exact
+       obsolete string to the approved opening so the live site updates
+       without a snippet change. Any other custom greeting is left alone. */
+    if (cfg.greeting === "Welcome! I'm Ricky B. Questions about pricing your home for sale?") {
+      cfg.greeting = DEFAULTS.greeting;
+    }
     return cfg;
   }
 
@@ -522,12 +556,13 @@
         [{ label: "Schools & districts", href: pathUrl(cfg, "/schools-districts/all/") }]
       );
     }
-    if (/\bfha\b|\bva\b|\busda\b|down\s*payment|financ|mortgage|loan|pre-?qualif/.test(t)) {
+    if (/\bfha\b|\bva\b|\busda\b|down\s*payment|financ|mortgage|loan|pre-?qualif|pre-?approv|flex lending|chenoa|home ?ready|home ?possible/.test(t)) {
       return R(
-        "The site has a guide to low- and no-down-payment options, including FHA, VA, and USDA loans, plus a preferred-vendors page if you want lending contacts.",
+        "Kevin's guide covers low- and no-down-payment options for Oregon buyers, including FHA, conventional, VA, USDA, and Oregon Flex Lending. Program rules and cash-to-close amounts vary — a lender has to run the numbers — and Kevin is not the lender. There's also a preferred-vendors list for lending contacts.",
         [
-          { label: "Low- to no-down-payment loans", href: pathUrl(cfg, "/blog/low-to-no-down-payment-home-loans/") },
-          { label: "Preferred vendors (lending)", href: pathUrl(cfg, "/preferred-vendors/#lending-banking") }
+          { label: "Low- to no-down-payment loans", href: pathUrl(cfg, cfg.financingPath) },
+          { label: "2026 NextGen homebuyer report", href: pathUrl(cfg, cfg.nextgenPath) },
+          { label: "Preferred vendors (lending)", href: pathUrl(cfg, cfg.lendingVendorsPath) }
         ]
       );
     }
@@ -621,11 +656,13 @@
 
   function intentOf(text) {
     var t = String(text || "").toLowerCase();
+    if (/talk to kevin|call (kevin|me|now)|text (kevin|me)|speak (to|with) kevin|reach kevin/.test(t)) return "talk";
+    if (/first[- ]?time|first home|keep (your|my) down-?payment|down[- ]?payment|\bdpa\b|\bgrants?\b|flex lending|ohcs|chenoa|home ?ready|home ?possible|pre-?approv(ed|al)|low-? ?or ?no-?down|no[- ]down[- ]payment|zero[- ]down/.test(t)) return "fthb";
     if (/reloc|moving (to|from) portland|new (in|to) (the )?area|transfer|job relocation/.test(t)) return "relocating";
     if (/probate|inherit|inherited|estate home|personal representative|executor/.test(t)) return "probate";
     if (/senior|downsiz|assisted living|aging (parent|mom|dad)|older adult|care home|memory care/.test(t)) return "senior";
     if (/home'?s value|worth of (my|our) (home|house)|price my|sell my|market analysis|\bcma\b/.test(t)) return "value";
-    if (/find (me )?(a )?home|looking for (a )?(home|house)|buy(ing)? (a )?(home|house)|home search|show me (homes|houses)/.test(t)) return "home";
+    if (/find (me )?(a )?home|see homes|looking for (a )?(home|house)|buy(ing)? (a )?(home|house)|home search|show me (homes|houses)/.test(t)) return "home";
     return null;
   }
 
@@ -642,11 +679,13 @@
 
   function starterChips() {
     return [
-      { id: "flow:home", label: "Find me a home", icon: "search" },
-      { id: "flow:value", label: "My home's value", icon: "dollar" },
-      { id: "flow:relocating", label: "Relocating", icon: "map" },
-      { id: "flow:probate", label: "Inherited a home", icon: "home" },
-      { id: "flow:senior", label: "Senior transition", icon: "heart" }
+      { id: "flow:home", label: "See homes for sale", icon: "search" },
+      { id: "flow:value", label: "What's my home worth?", icon: "dollar" },
+      { id: "flow:fthb", label: "First home? Keep your down\u2011payment", icon: "percent" },
+      { id: "flow:relocating", label: "Moving to Portland", icon: "map" },
+      { id: "flow:probate", label: "Selling a home in probate", icon: "home" },
+      { id: "flow:senior", label: "Helping a parent downsize", icon: "heart" },
+      { id: "flow:talk", label: "Talk to Kevin now", icon: "phone" }
     ];
   }
 
@@ -657,6 +696,7 @@
       map: '<svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"></path><circle cx="12" cy="10" r="2.2"></circle></svg>',
       home: '<svg viewBox="0 0 24 24"><path d="M3 11.5L12 4l9 7.5"></path><path d="M6 10.5V20h12v-9.5"></path></svg>',
       heart: '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.6-9.2-8.2C.8 8.6 2.2 5 5.6 5c2 0 3.3 1.2 4.4 2.6C11.1 6.2 12.4 5 14.4 5c3.4 0 4.8 3.6 2.8 6.8C19 15.4 12 20 12 20z"></path></svg>',
+      percent: '<svg viewBox="0 0 24 24"><circle cx="6.5" cy="7" r="2.4"></circle><circle cx="17.5" cy="17" r="2.4"></circle><path d="M17 6L7 18"></path></svg>',
       phone: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h3l1.5 4-2 1.5a12 12 0 006 6l1.5-2 4 1.5v3c0 1-1 2-2.2 2C9.5 19.5 4.5 14.5 4.5 5.7c0-1.2 1-2.2 2-2.2z"></path></svg>',
       text: '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5z"></path></svg>',
       mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M6 11a6 6 0 0012 0M12 17v4"></path></svg>',
@@ -675,6 +715,7 @@
       flow: null,
       step: null,
       home: { area: null, budget: null, beds: null, timeline: null },
+      fthb: { timeline: null, preapproval: null },
       lead: { name: "", email: "", phone: "" },
       leadAfter: null,
       typing: false,
@@ -903,6 +944,7 @@
     this.state.flow = null;
     this.state.step = null;
     this.state.home = { area: null, budget: null, beds: null, timeline: null };
+    this.state.fthb = { timeline: null, preapproval: null };
     this.state.lead = { name: "", email: "", phone: "" };
     this.state.leadAfter = null;
     this.greet();
@@ -977,14 +1019,13 @@
       if (m.links && m.links.length) {
         var links = $("div", { class: "pre-links" });
         m.links.forEach(function (l) {
-          links.appendChild(
-            $("a", {
-              class: "pre-link",
-              href: l.href,
-              target: "_blank",
-              rel: "noopener noreferrer"
-            }, [l.label + " ↗"])
-          );
+          var isPhone = /^(tel|sms):/i.test(l.href || "");
+          var attrs = { class: "pre-link", href: l.href };
+          if (!isPhone) {
+            attrs.target = "_blank";
+            attrs.rel = "noopener noreferrer";
+          }
+          links.appendChild($("a", attrs, [l.label + (isPhone ? "" : " ↗")]));
         });
         bubbleKids.push(links);
       }
@@ -1093,6 +1134,16 @@
       this.homeSetTimeline(chip.label);
       return;
     }
+    if (chip.id.indexOf("fthb-time:") === 0) {
+      this.pushUser(chip.label);
+      this.fthbSetTimeline(chip.label);
+      return;
+    }
+    if (chip.id.indexOf("fthb-pre:") === 0) {
+      this.pushUser(chip.label);
+      this.fthbSetPreapproval(chip.label);
+      return;
+    }
     if (chip.id === "lead:yes") {
       this.pushUser("Yes, have Kevin follow up");
       this.startLead();
@@ -1181,6 +1232,39 @@
           { id: "lead:no", label: "Just browsing" }
         ]
       });
+      return;
+    }
+    if (name === "fthb") {
+      this.state.fthb = { timeline: null, preapproval: null };
+      this.state.leadAfter = "First home? Keep your down-payment";
+      this.state.step = "fthb-timeline";
+      this.pushBot({
+        text: "Happy to help you look at first-time buyer financing and down-payment assistance. Kevin helps first-time buyers explore grants, down-payment assistance, and loan options that may include little or no down payment — availability, eligibility, closing costs, and lender approval vary, and Kevin is not the lender. What's your timeline for buying?",
+        chips: TIMELINES.map(function (b) { return { id: "fthb-time:" + b, label: b }; })
+      });
+      return;
+    }
+    if (name === "talk") {
+      this.state.leadAfter = "Talk to Kevin now";
+      this.state.step = "talk";
+      var phoneOk = !!digitsPhone(this.cfg.phoneNumber);
+      var talkText = phoneOk
+        ? "You can call or text Kevin now at " + prettyPhone(this.cfg.phoneNumber) + ". Use Call me or Text me below, or the links here. If you'd rather have him reach out, I can take your name, email, and phone."
+        : "Call and text aren't configured yet. I can take your name so Kevin can follow up, or you can use the contact page.";
+      var talkLinks = phoneOk
+        ? [
+            { label: "Call " + prettyPhone(this.cfg.phoneNumber), href: telHref(this.cfg.phoneNumber) },
+            { label: "Text " + prettyPhone(this.cfg.phoneNumber), href: smsHref(this.cfg.phoneNumber) }
+          ]
+        : [{ label: "Contact page", href: pathUrl(this.cfg, "/contact/") }];
+      this.pushBot({
+        text: talkText,
+        links: talkLinks,
+        chips: [
+          { id: "lead:yes", label: "Have Kevin call me back" },
+          { id: "lead:no", label: "I'll reach out myself" }
+        ]
+      });
     }
   };
 
@@ -1236,6 +1320,39 @@
       links: links,
       chips: [
         { id: "lead:yes", label: "Have Kevin follow up with homes" },
+        { id: "lead:no", label: "I'll browse on my own" }
+      ]
+    });
+  };
+
+  Widget.prototype.fthbSetTimeline = function (timeline) {
+    this.state.fthb.timeline = timeline;
+    this.state.step = "fthb-pre";
+    this.pushBot({
+      text: "Got it — " + timeline + ". Are you already pre-approved for a mortgage?",
+      chips: [
+        { id: "fthb-pre:yes", label: "Yes, pre-approved" },
+        { id: "fthb-pre:working", label: "Working on it" },
+        { id: "fthb-pre:notyet", label: "Not yet" },
+        { id: "fthb-pre:unsure", label: "Not sure" }
+      ]
+    });
+  };
+
+  Widget.prototype.fthbSetPreapproval = function (preapproval) {
+    this.state.fthb.preapproval = preapproval;
+    this.state.step = "fthb-done";
+    this.pushBot({
+      text: "Thanks. For Oregon buyers, some conventional loans can start around 3% down, FHA around 3.5%, and eligible VA or USDA loans may be 0% down — but that is not a universal minimum, and a lender has to run your numbers. Cash to close also includes closing costs, which commonly run about 2% to 5% of the price. OHCS Flex Lending can sometimes pair a first mortgage with assistance that may cover up to 100% of cash to close. Kevin's guide walks through the options, and there's a preferred-vendors list if you want lending contacts.",
+      links: [
+        { label: "Low- to no-down-payment loans", href: pathUrl(this.cfg, this.cfg.financingPath) },
+        { label: "2026 NextGen homebuyer report", href: pathUrl(this.cfg, this.cfg.nextgenPath) },
+        { label: "Preferred vendors (lending)", href: pathUrl(this.cfg, this.cfg.lendingVendorsPath) },
+        { label: "USDA-qualified homes", href: pathUrl(this.cfg, this.cfg.usdaSearchPath) }
+      ],
+      chips: [
+        { id: "lead:yes", label: "Have Kevin follow up" },
+        { id: "more:home", label: "See homes for sale" },
         { id: "lead:no", label: "I'll browse on my own" }
       ]
     });
@@ -1340,6 +1457,14 @@
       this.homeSetTimeline(text);
       return;
     }
+    if (this.state.flow === "fthb" && this.state.step === "fthb-timeline") {
+      this.fthbSetTimeline(normalizeFthbTimeline(text));
+      return;
+    }
+    if (this.state.flow === "fthb" && this.state.step === "fthb-pre") {
+      this.fthbSetPreapproval(normalizeFthbPreapproval(text));
+      return;
+    }
 
     var intent = intentOf(text);
     if (intent) {
@@ -1367,7 +1492,7 @@
     }
 
     this.pushBot({
-      text: "I don't have a scripted answer for that yet, and an AI backend isn't configured. I can help with finding a home, a value estimate, relocating to Portland, an inherited or probate property, or a senior housing transition — or I can take your name so Kevin can follow up.",
+      text: "I don't have a scripted answer for that yet, and an AI backend isn't configured. I can help with homes for sale, a value estimate, first-time buyer financing and down-payment assistance, moving to Portland, selling a home in probate, or helping a parent downsize — or you can talk to Kevin now.",
       chips: starterChips().concat([{ id: "lead:yes", label: "Leave my contact info" }])
     });
   };
