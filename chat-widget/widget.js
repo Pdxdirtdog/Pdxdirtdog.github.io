@@ -57,7 +57,9 @@
     pageUrl: "",
     sellerMode: "",
     poweredBy: "PortlandRealEstate.guide",
-    position: "bottom-right"
+    position: "bottom-right",
+    /* Open the panel on page load; visitors close it if they want it out of the way. */
+    openOnLoad: true
   };
 
   var AREA_GROUPS = [
@@ -357,15 +359,19 @@
     '  background:#fff7e6;color:#6a4b00;font-size:12.5px;border:1px solid #f3e0b0;',
     '}',
     '.pre-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}',
-    '@media (max-width:480px){',
+    '@media (max-width:767px){',
     '  .pre-panel{',
-    '    right:0;left:0;bottom:0;width:100vw;height:min(100vh,100dvh);',
-    '    border-radius:16px 16px 0 0;max-height:100vh;',
+    '    right:0;left:0;bottom:0;width:100vw;',
+    '    height:min(72dvh,620px);max-height:min(72dvh,620px);',
+    '    border-radius:16px 16px 0 0;',
+    '    padding-bottom:env(safe-area-inset-bottom,0);',
     '  }',
     '  .pre--left .pre-panel{left:0;right:0;}',
-    '  .pre-launcher{right:16px;bottom:16px;}',
+    '  .pre-launcher{right:16px;bottom:16px;z-index:2147483002;}',
+    '  .pre-launcher.is-open{display:none;}',
     '  .pre-chips{gap:6px;}',
     '  .pre-chip{padding:6px 11px;font-size:12.5px;}',
+    '  .pre-close{width:40px;height:40px;}',
     '}',
     '@media (prefers-reduced-motion:reduce){',
     '  .pre-pulse{animation:none;display:none;}',
@@ -998,20 +1004,24 @@
     }, 6000);
   };
 
-  Widget.prototype.open = function () {
+  Widget.prototype.open = function (opts) {
     this.state.open = true;
+    setPageChatOpen(true);
     this.ui.panel.classList.add("is-open");
     this.ui.panel.removeAttribute("hidden");
     this.ui.launcher.classList.add("is-open");
     this.ui.launcher.setAttribute("aria-expanded", "true");
     this.ui.launcher.setAttribute("aria-label", "Close chat");
     var self = this;
-    setTimeout(function () { self.ui.input && self.ui.input.focus(); }, 50);
+    if (!opts || opts.focus !== false) {
+      setTimeout(function () { self.ui.input && self.ui.input.focus(); }, 50);
+    }
     this.scrollToEnd();
   };
 
   Widget.prototype.close = function () {
     this.state.open = false;
+    setPageChatOpen(false);
     this.ui.panel.classList.remove("is-open");
     this.ui.panel.setAttribute("hidden", "hidden");
     this.ui.launcher.classList.remove("is-open");
@@ -1870,8 +1880,55 @@
     }
   };
 
+  /* Theme CSS hides .call-widget at min-width:768px, so it only shows below 768px.
+     Desktop reflow reserves 420px panel + 20px offset + 24px gap. */
+  var HOST_CSS = [
+    "@media (max-width: 767px){",
+    "  html.pre-chat-open .call-widget{display:none !important;}",
+    "}",
+    "@media (min-width: 1024px){",
+    "  html.pre-chat-open{",
+    "    --pre-chat-gutter:464px;",
+    "    overflow-x:hidden;",
+    "  }",
+    "  html.pre-chat-open body{",
+    "    margin-right:var(--pre-chat-gutter) !important;",
+    "    box-sizing:border-box;",
+    "  }",
+    "  html.pre-chat-open header.fixed,",
+    "  html.pre-chat-open .navbar-fixed-top,",
+    "  html.pre-chat-open .navbar-fixed-bottom,",
+    "  html.pre-chat-open .more-menu-overlay{",
+    "    width:auto !important;",
+    "    left:0;",
+    "    right:var(--pre-chat-gutter) !important;",
+    "  }",
+    "}"
+  ].join("\n");
+
+  function injectHostStyles() {
+    if (document.getElementById("pre-chat-host-css")) return;
+    var el = document.createElement("style");
+    el.id = "pre-chat-host-css";
+    el.textContent = HOST_CSS;
+    (document.head || document.documentElement).appendChild(el);
+  }
+
+  function setPageChatOpen(open) {
+    var root = document.documentElement;
+    if (!root) return;
+    if (open) root.classList.add("pre-chat-open");
+    else root.classList.remove("pre-chat-open");
+  }
+
+  function shouldOpenOnLoad(cfg) {
+    var v = cfg && cfg.openOnLoad;
+    return v !== false && v !== "false" && v !== "0";
+  }
+
   function init() {
     if (document.getElementById("pre-chat-root")) return;
+    injectHostStyles();
     var cfg = readConfig();
     var w = new Widget(cfg);
     w.mount();
@@ -1883,6 +1940,10 @@
       config: cfg,
       _widget: w
     };
+    if (shouldOpenOnLoad(cfg)) {
+      setPageChatOpen(true);
+      w.open({ focus: false });
+    }
   }
 
   if (document.readyState === "loading") {
