@@ -48,6 +48,14 @@
     probateOnsitePath: "/personal-representative-support/",
     seniorOnsitePath: "/senior-housing-transition-specialist/",
     relocatingPath: "/portland-relocation-guide/",
+    pricingPath: "/blog/how-to-price-your-portland-home-to-sell/",
+    pricingStrategyPath: "/sellers/price-to-sell/",
+    cashOfferPath: "/blog/cash-offer-portland-home/",
+    expReadyPath: "/blog/pay-at-close-home-improvements/",
+    sellerGreeting: "Hi, I'm Ricky B. Thinking about selling? How can I help today?",
+    /* Optional demo/overrides: pageUrl, sellerMode */
+    pageUrl: "",
+    sellerMode: "",
     poweredBy: "PortlandRealEstate.guide",
     position: "bottom-right"
   };
@@ -583,7 +591,7 @@
         "For a value estimate, the site points sellers to GuessItImateNoMore. There's also a Portland pricing-strategy guide on the blog.",
         [
           { label: "Get a home-value estimate", href: cfg.homeValueUrl },
-          { label: "How to price your home to sell", href: pathUrl(cfg, "/blog/how-to-price-your-home-to-sell-the-ultimate-portland-seller-strategy/") }
+          { label: "How to price your home to sell", href: pathUrl(cfg, "/blog/how-to-price-your-portland-home-to-sell/") }
         ]
       );
     }
@@ -657,6 +665,10 @@
   function intentOf(text) {
     var t = String(text || "").toLowerCase();
     if (/talk to kevin|call (kevin|me|now)|text (kevin|me)|speak (to|with) kevin|reach kevin/.test(t)) return "talk";
+    if (/best time to sell|when (to|should i) (sell|list)|time to list|when should we sell/.test(t)) return "sell-timing";
+    if (/fix before (i )?(list|sell)|repair before|prep(are)? (my )?(home|house)|stag(e|ing)|renovat(e|ing) before/.test(t)) return "sell-prep";
+    if (/how much (will|do) i (net|keep|walk)|net proceeds|seller proceeds|walk away with/.test(t)) return "sell-net";
+    if (/sell(ing)? and buy(ing)?|buy(ing)? and sell(ing)?|same time|rent-?back|contingent (offer|sale)/.test(t)) return "sell-both";
     if (/first[- ]?time|first home|keep (your|my) down-?payment|down[- ]?payment|\bdpa\b|\bgrants?\b|flex lending|ohcs|chenoa|home ?ready|home ?possible|pre-?approv(ed|al)|low-? ?or ?no-?down|no[- ]down[- ]payment|zero[- ]down/.test(t)) return "fthb";
     if (/reloc|moving (to|from) portland|new (in|to) (the )?area|transfer|job relocation/.test(t)) return "relocating";
     if (/probate|inherit|inherited|estate home|personal representative|executor/.test(t)) return "probate";
@@ -677,7 +689,18 @@
     return chips;
   }
 
-  function starterChips() {
+  function sellerAreaChips() {
+    var chips = [{ id: "sell-area:unsure", label: "Not sure / another area" }, { id: "sell-skip", label: "Skip this question" }];
+    AREA_GROUPS.forEach(function (g) {
+      chips.push({ id: "group:" + g.label, label: g.label, group: true });
+      g.items.forEach(function (a) {
+        chips.push({ id: "sell-area:" + a.path, label: a.name });
+      });
+    });
+    return chips;
+  }
+
+  function defaultStarterChips() {
     return [
       { id: "flow:home", label: "See homes for sale", icon: "search" },
       { id: "flow:value", label: "What's my home worth?", icon: "dollar" },
@@ -689,6 +712,64 @@
     ];
   }
 
+  function sellerStarterChips() {
+    return [
+      { id: "flow:value", label: "What's my home worth?", icon: "dollar" },
+      { id: "flow:sell-timing", label: "When's the best time to sell?", icon: "clock" },
+      { id: "flow:sell-prep", label: "What should I fix before listing?", icon: "wrench" },
+      { id: "flow:sell-net", label: "How much will I net?", icon: "percent" },
+      { id: "flow:sell-both", label: "Selling and buying at the same time", icon: "swap" },
+      { id: "flow:probate", label: "Selling a home in probate", icon: "home" },
+      { id: "flow:talk", label: "Talk to Kevin now", icon: "phone" }
+    ];
+  }
+
+  /* Seller-page matching: explicit paths, path patterns, and blog-slug keywords
+     so new seller posts are picked up without a snippet change. */
+  var SELLER_EXACT_PATHS = {
+    "/sellers/price-to-sell": 1,
+    "/blog/how-to-price-your-portland-home-to-sell": 1,
+    "/blog/how-to-price-your-home-to-sell-the-ultimate-portland-seller-strategy": 1,
+    "/blog/cash-offer-portland-home": 1,
+    "/blog/pay-at-close-home-improvements": 1,
+    "/blog/category/home-sellers": 1,
+    "/personal-representative-support": 1,
+    "/senior-housing-transition-specialist": 1
+  };
+
+  function pageHref(cfg) {
+    if (cfg && cfg.pageUrl) return String(cfg.pageUrl);
+    if (cfg && (cfg.sellerMode === true || cfg.sellerMode === "true" || cfg.sellerMode === "1")) {
+      return SITE + "/sellers/price-to-sell/";
+    }
+    return (global.location && global.location.href) || "";
+  }
+
+  function isSellerPage(cfg) {
+    try {
+      var href = pageHref(cfg);
+      var u = new URL(href, SITE + "/");
+      var path = String(u.pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
+      if (SELLER_EXACT_PATHS[path]) return true;
+      if (/^\/(sellers?|selling|sell)(\/|$)/.test(path)) return true;
+      if (/\/(home-value|home-worth|price-to-sell|pricing|exp-ready|expready|express-?offers?)(\/|$)/.test(path)) return true;
+      var isBlogPost = /^\/blog\//.test(path) && !/^\/blog\/(category|month|tag|author)(\/|$)/.test(path);
+      if (isBlogPost) {
+        var slug = path.split("/").filter(Boolean).pop() || "";
+        if (/sell|seller|selling|pricing|price-your|price-to-sell|home-value|home-worth|\bcma\b|listing|pre-listing|prelisting|staging|cash-offer|express-?offer|pay-at-close|net-proceeds|net-sheet|fsbo|exp-ready|expready|for-sale-by/.test(slug)) {
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function starterChips(cfg) {
+    return isSellerPage(cfg) ? sellerStarterChips() : defaultStarterChips();
+  }
+
   function ICONS() {
     return {
       search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>',
@@ -697,6 +778,9 @@
       home: '<svg viewBox="0 0 24 24"><path d="M3 11.5L12 4l9 7.5"></path><path d="M6 10.5V20h12v-9.5"></path></svg>',
       heart: '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.6-9.2-8.2C.8 8.6 2.2 5 5.6 5c2 0 3.3 1.2 4.4 2.6C11.1 6.2 12.4 5 14.4 5c3.4 0 4.8 3.6 2.8 6.8C19 15.4 12 20 12 20z"></path></svg>',
       percent: '<svg viewBox="0 0 24 24"><circle cx="6.5" cy="7" r="2.4"></circle><circle cx="17.5" cy="17" r="2.4"></circle><path d="M17 6L7 18"></path></svg>',
+      clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v5l3.5 2"></path></svg>',
+      wrench: '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L5 16l3 3 4.3-4.3a4 4 0 005.4-5.4L15 12l-3-3z"></path></svg>',
+      swap: '<svg viewBox="0 0 24 24"><path d="M7 8h11l-3.5-3.5"></path><path d="M17 16H6l3.5 3.5"></path></svg>',
       phone: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h3l1.5 4-2 1.5a12 12 0 006 6l1.5-2 4 1.5v3c0 1-1 2-2.2 2C9.5 19.5 4.5 14.5 4.5 5.7c0-1.2 1-2.2 2-2.2z"></path></svg>',
       text: '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5z"></path></svg>',
       mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M6 11a6 6 0 0012 0M12 17v4"></path></svg>',
@@ -716,6 +800,8 @@
       step: null,
       home: { area: null, budget: null, beds: null, timeline: null },
       fthb: { timeline: null, preapproval: null },
+      seller: { area: null, timeline: null, condition: null, plan: null },
+      intent: null,
       lead: { name: "", email: "", phone: "" },
       leadAfter: null,
       typing: false,
@@ -945,15 +1031,19 @@
     this.state.step = null;
     this.state.home = { area: null, budget: null, beds: null, timeline: null };
     this.state.fthb = { timeline: null, preapproval: null };
+    this.state.seller = { area: null, timeline: null, condition: null, plan: null };
+    this.state.intent = null;
     this.state.lead = { name: "", email: "", phone: "" };
     this.state.leadAfter = null;
     this.greet();
   };
 
   Widget.prototype.greet = function () {
+    var seller = isSellerPage(this.cfg);
+    if (seller) this.state.intent = "seller";
     this.pushBot({
-      text: this.cfg.greeting,
-      chips: starterChips()
+      text: seller ? (this.cfg.sellerGreeting || "Hi, I'm Ricky B. Thinking about selling? How can I help today?") : this.cfg.greeting,
+      chips: starterChips(this.cfg)
     }, true);
   };
 
@@ -1134,6 +1224,31 @@
       this.homeSetTimeline(chip.label);
       return;
     }
+    if (chip.id.indexOf("sell-area:") === 0) {
+      this.pushUser(chip.label);
+      this.sellerSetArea(chip.id === "sell-area:unsure" ? { name: "Not sure yet", path: "" } : ALL_AREAS.filter(function (a) { return "sell-area:" + a.path === chip.id; })[0]);
+      return;
+    }
+    if (chip.id.indexOf("sell-time:") === 0) {
+      this.pushUser(chip.label);
+      this.sellerSetTimeline(chip.label);
+      return;
+    }
+    if (chip.id.indexOf("sell-cond:") === 0) {
+      this.pushUser(chip.label);
+      this.sellerSetCondition(chip.label);
+      return;
+    }
+    if (chip.id.indexOf("sell-plan:") === 0) {
+      this.pushUser(chip.label);
+      this.sellerSetPlan(chip.label);
+      return;
+    }
+    if (chip.id === "sell-skip") {
+      this.pushUser(chip.label);
+      this.sellerFinishCurrent();
+      return;
+    }
     if (chip.id.indexOf("fthb-time:") === 0) {
       this.pushUser(chip.label);
       this.fthbSetTimeline(chip.label);
@@ -1153,7 +1268,7 @@
       this.pushUser("No thanks");
       this.pushBot({
         text: "No problem. I'm here if you have another question, or you can keep browsing the links above.",
-        chips: starterChips()
+        chips: starterChips(this.cfg)
       });
       return;
     }
@@ -1165,6 +1280,60 @@
 
   Widget.prototype.startFlow = function (name) {
     this.state.flow = name;
+    if (isSellerPage(this.cfg) || this.state.intent === "seller" || name.indexOf("sell-") === 0) {
+      this.state.intent = "seller";
+    }
+    if (name === "sell-timing") {
+      this.state.leadAfter = "When's the best time to sell?";
+      this.state.step = "sell-timing";
+      this.state.seller.timeline = null;
+      this.pushBot({
+        text: "Timing depends on your situation as much as the calendar. What's your timeline for selling?",
+        chips: TIMELINES.map(function (b) { return { id: "sell-time:" + b, label: b }; })
+      });
+      return;
+    }
+    if (name === "sell-prep") {
+      this.state.leadAfter = "What should I fix before listing?";
+      this.state.step = "sell-prep";
+      this.state.seller.condition = null;
+      this.pushBot({
+        text: "A little context helps. How would you describe the home's condition right now?",
+        chips: [
+          { id: "sell-cond:repairs", label: "Needs repairs" },
+          { id: "sell-cond:cosmetic", label: "Mostly cosmetic" },
+          { id: "sell-cond:prepped", label: "Already prepped" },
+          { id: "sell-cond:unsure", label: "Not sure" }
+        ]
+      });
+      return;
+    }
+    if (name === "sell-net") {
+      this.state.leadAfter = "How much will I net?";
+      this.state.step = "sell-net-area";
+      this.state.seller.area = null;
+      this.pushBot({
+        text: "I can't quote a net figure in this chat — it depends on the home and the contract — but I can show you how Kevin looks at proceeds. Which area is the home in?",
+        chips: sellerAreaChips()
+      });
+      return;
+    }
+    if (name === "sell-both") {
+      this.state.leadAfter = "Selling and buying at the same time";
+      this.state.step = "sell-both";
+      this.state.seller.plan = null;
+      this.pushBot({
+        text: "Plenty of people need to sell and buy in the same move. What's the plan you're trying to make work?",
+        chips: [
+          { id: "sell-plan:sell-first", label: "Need to sell first" },
+          { id: "sell-plan:buy-first", label: "Want to buy first" },
+          { id: "sell-plan:overlap", label: "Need them to overlap" },
+          { id: "sell-plan:rentback", label: "Need a rent-back" },
+          { id: "sell-plan:unsure", label: "Not sure yet" }
+        ]
+      });
+      return;
+    }
     if (name === "home") {
       this.state.home = { area: null, budget: null, beds: null, timeline: null };
       this.state.step = "area";
@@ -1176,16 +1345,25 @@
     }
     if (name === "value") {
       this.state.step = "value";
+      if (this.state.intent === "seller") this.state.leadAfter = "What's my home worth?";
       this.pushBot({
-        text: "For a home-value estimate, the site points sellers to GuessItImateNoMore. You can run an estimate there, and there's also a Portland pricing-strategy guide if you want the bigger picture.",
+        text: this.state.intent === "seller"
+          ? "Online estimates are a starting point. A real pricing analysis should also consider the property, recent comparable sales, today's competition, buyer activity, and condition. You can run a starting estimate here, and Kevin can prepare a comparative market analysis with a likely pricing range, a listing strategy, and estimated seller proceeds."
+          : "For a home-value estimate, the site points sellers to GuessItImateNoMore. You can run an estimate there, and there's also a Portland pricing-strategy guide if you want the bigger picture.",
         links: [
           { label: "Get a home-value estimate", href: this.cfg.homeValueUrl },
-          { label: "How to price your home to sell", href: pathUrl(this.cfg, "/blog/how-to-price-your-home-to-sell-the-ultimate-portland-seller-strategy/") }
+          { label: "How to price your Portland home to sell", href: pathUrl(this.cfg, this.cfg.pricingPath) },
+          { label: "Pricing strategy (seller guide)", href: pathUrl(this.cfg, this.cfg.pricingStrategyPath) }
         ],
-        chips: [
-          { id: "lead:yes", label: "Have Kevin walk me through it" },
-          { id: "lead:no", label: "Just browsing" }
-        ]
+        chips: this.state.intent === "seller"
+          ? [
+              { id: "lead:yes", label: "Have Kevin prepare a CMA" },
+              { id: "lead:no", label: "Just browsing" }
+            ]
+          : [
+              { id: "lead:yes", label: "Have Kevin walk me through it" },
+              { id: "lead:no", label: "Just browsing" }
+            ]
       });
       return;
     }
@@ -1358,6 +1536,87 @@
     });
   };
 
+  Widget.prototype.sellerSetArea = function (area) {
+    this.state.seller.area = area || { name: "Not sure / another area", path: "" };
+    this.sellerFinishCurrent();
+  };
+
+  Widget.prototype.sellerSetTimeline = function (timeline) {
+    this.state.seller.timeline = timeline;
+    this.sellerFinishCurrent();
+  };
+
+  Widget.prototype.sellerSetCondition = function (condition) {
+    this.state.seller.condition = condition;
+    this.sellerFinishCurrent();
+  };
+
+  Widget.prototype.sellerSetPlan = function (plan) {
+    this.state.seller.plan = plan;
+    this.sellerFinishCurrent();
+  };
+
+  Widget.prototype.sellerFinishCurrent = function () {
+    var name = this.state.flow;
+    var areaName = this.state.seller.area && this.state.seller.area.name;
+    var pricingLinks = [
+      { label: "How to price your Portland home to sell", href: pathUrl(this.cfg, this.cfg.pricingPath) },
+      { label: "Pricing strategy (seller guide)", href: pathUrl(this.cfg, this.cfg.pricingStrategyPath) }
+    ];
+    var leadChips = [
+      { id: "lead:yes", label: "Have Kevin follow up" },
+      { id: "lead:no", label: "I'll browse on my own" }
+    ];
+    this.state.step = (name || "seller") + "-done";
+
+    if (name === "sell-timing") {
+      this.pushBot({
+        text: "There's no single best week on the calendar in Kevin's guides. The advice is to price the home correctly from day one — the first two weeks on the market typically see the most buyer interest — and to weigh any wait against your carrying costs, such as the mortgage, taxes, insurance, utilities, upkeep, and HOA dues. The pricing guide includes an illustrative example of that math; your numbers will be different. A launch price should fit your timeline" + (this.state.seller.timeline ? " (" + this.state.seller.timeline + ")" : "") + " and the homes you're competing with.",
+        links: pricingLinks,
+        chips: [{ id: "lead:yes", label: "Have Kevin look at my timing" }, { id: "lead:no", label: "I'll browse on my own" }]
+      });
+      return;
+    }
+    if (name === "sell-prep") {
+      this.pushBot({
+        text: "Kevin groups prep into three buckets: repairs that can worry buyers or inspectors (leaks, rot, electrical or safety issues, deferred maintenance), presentation (paint, cleaning, landscaping, lighting, decluttering), and major renovations — which don't automatically return dollar-for-dollar and are sometimes better left for the next owner. Qualified sellers listing with an eXp Realty agent may be able to use eXp Ready, powered by Notable, to fund pre-listing prep and repay at closing. Eligibility, fees, interest, and approval terms are on the guide, and approval is not guaranteed.",
+        links: [
+          { label: "eXp Ready: prep now, pay at closing", href: pathUrl(this.cfg, this.cfg.expReadyPath) },
+          { label: "How to price your Portland home to sell", href: pathUrl(this.cfg, this.cfg.pricingPath) },
+          { label: "Preferred vendors", href: pathUrl(this.cfg, "/preferred-vendors/") }
+        ],
+        chips: [{ id: "lead:yes", label: "Have Kevin walk me through prep" }, { id: "lead:no", label: "I'll browse on my own" }]
+      });
+      return;
+    }
+    if (name === "sell-net") {
+      this.pushBot({
+        text: (areaName ? "Got it — " + areaName + ". " : "") + "Two offers at the same price can leave you with different proceeds, depending on credits, repairs, inspection terms, financing, and the closing date. Kevin looks at net proceeds and time, not just the asking price, and can include estimated seller proceeds in a comparative market analysis. If you're weighing speed, his cash-offer guide also compares a highest-and-best cash offer with what a traditional listing might net. You're not obligated to accept any offer.",
+        links: pricingLinks.concat([
+          { label: "Cash offers in Portland", href: pathUrl(this.cfg, this.cfg.cashOfferPath) }
+        ]),
+        chips: [{ id: "lead:yes", label: "Have Kevin estimate my proceeds" }, { id: "lead:no", label: "I'll browse on my own" }]
+      });
+      return;
+    }
+    if (name === "sell-both") {
+      this.pushBot({
+        text: "Kevin's pricing guide notes that offer terms — closing timeline, contingencies, and rent-back needs — can matter as much as price. A slightly lower offer with stronger terms can be the better result. Cash offers can make the closing more predictable, but cash isn't automatically better or risk-free. I can have Kevin walk through a plan for selling and buying in your timeframe.",
+        links: pricingLinks.concat([
+          { label: "Cash offers in Portland", href: pathUrl(this.cfg, this.cfg.cashOfferPath) }
+        ]),
+        chips: [{ id: "lead:yes", label: "Have Kevin help me plan both moves" }, { id: "lead:no", label: "I'll browse on my own" }]
+      });
+      return;
+    }
+    /* Fallback if a skip arrived without a known flow */
+    this.pushBot({
+      text: "I can share Kevin's seller guides on pricing, prep, and proceeds, or take your info so he can follow up.",
+      links: pricingLinks,
+      chips: leadChips
+    });
+  };
+
   Widget.prototype.startLead = function () {
     this.state.flow = "lead";
     this.state.step = "lead";
@@ -1376,8 +1635,10 @@
       email: lead.email,
       phone: lead.phone,
       topic: this.state.leadAfter || this.state.home.area || this.state.step,
+      intent: this.state.intent || (isSellerPage(this.cfg) ? "seller" : ""),
       homeSearch: this.state.home,
-      pageUrl: global.location && global.location.href,
+      seller: this.state.seller,
+      pageUrl: pageHref(this.cfg) || (global.location && global.location.href),
       capturedAt: new Date().toISOString(),
       transcript: this.state.messages
         .filter(function (m) { return m.role === "user" || m.role === "bot"; })
@@ -1391,7 +1652,7 @@
           "Thanks, " +
           lead.name +
           ". I have your info in this chat only — nothing was sent. When a lead webhook is added to the widget config (for example, later to Cloze CRM), this is where it would go.",
-        chips: starterChips()
+        chips: starterChips(this.cfg)
       });
       this.state.flow = null;
       return;
@@ -1409,14 +1670,14 @@
         if (!res.ok) throw new Error("bad status");
         self.pushBot({
           text: "All set — Kevin can follow up with you. I'm here if you have another question.",
-          chips: starterChips()
+          chips: starterChips(this.cfg)
         });
       })
       .catch(function () {
         self.pushBot({
           text: "I couldn't reach the lead destination just now. Please use the contact page, or try Call me / Text me if a number is configured.",
           links: [{ label: "Contact page", href: pathUrl(self.cfg, "/contact/") }],
-          chips: starterChips()
+          chips: starterChips(this.cfg)
         });
       });
     this.state.flow = null;
@@ -1457,6 +1718,28 @@
       this.homeSetTimeline(text);
       return;
     }
+    if (this.state.flow === "sell-timing" && this.state.step === "sell-timing") {
+      this.sellerSetTimeline(normalizeFthbTimeline(text));
+      return;
+    }
+    if (this.state.flow === "sell-prep" && this.state.step === "sell-prep") {
+      this.sellerSetCondition(String(text || "").trim() || "Not sure");
+      return;
+    }
+    if (this.state.flow === "sell-both" && this.state.step === "sell-both") {
+      this.sellerSetPlan(String(text || "").trim() || "Not sure yet");
+      return;
+    }
+    if (this.state.flow === "sell-net" && this.state.step === "sell-net-area") {
+      var sellArea = matchArea(text);
+      if (sellArea) { this.sellerSetArea(sellArea); return; }
+      if (/not sure|skip|other|another|n\/a/.test(text.toLowerCase())) {
+        this.sellerSetArea({ name: "Not sure / another area", path: "" });
+        return;
+      }
+      this.sellerSetArea({ name: String(text || "").trim(), path: "" });
+      return;
+    }
     if (this.state.flow === "fthb" && this.state.step === "fthb-timeline") {
       this.fthbSetTimeline(normalizeFthbTimeline(text));
       return;
@@ -1486,14 +1769,14 @@
 
     var faq = faqMatch(text, this.cfg);
     if (faq) {
-      faq.chips = starterChips();
+      faq.chips = starterChips(this.cfg);
       this.pushBot(faq);
       return;
     }
 
     this.pushBot({
       text: "I don't have a scripted answer for that yet, and an AI backend isn't configured. I can help with homes for sale, a value estimate, first-time buyer financing and down-payment assistance, moving to Portland, selling a home in probate, or helping a parent downsize — or you can talk to Kevin now.",
-      chips: starterChips().concat([{ id: "lead:yes", label: "Leave my contact info" }])
+      chips: starterChips(this.cfg).concat([{ id: "lead:yes", label: "Leave my contact info" }])
     });
   };
 
@@ -1510,7 +1793,7 @@
       body: JSON.stringify({
         message: text,
         history: history,
-        pageUrl: global.location && global.location.href,
+        pageUrl: pageHref(self.cfg) || (global.location && global.location.href),
         source: "portlandrealestate.guide-chat-widget"
       }),
       mode: "cors",
@@ -1522,7 +1805,7 @@
         var j = out.j || {};
         var reply = j.reply || j.message || (j.replies && j.replies[0]) || "";
         if (!out.ok || !reply) throw new Error("empty");
-        var chips = Array.isArray(j.chips) && j.chips.length ? j.chips : starterChips();
+        var chips = Array.isArray(j.chips) && j.chips.length ? j.chips : starterChips(this.cfg);
         if (j.suggestLead) {
           chips = chips.concat([
             { id: "lead:yes", label: "Have Kevin follow up" },
@@ -1539,7 +1822,7 @@
         self.pushBot({
           text: "I couldn't reach the AI assistant just now. I can still help with the main topics below, or you can use the contact page.",
           links: [{ label: "Contact page", href: pathUrl(self.cfg, "/contact/") }],
-          chips: starterChips()
+          chips: starterChips(this.cfg)
         }, true);
       });
   };
